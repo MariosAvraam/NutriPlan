@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+backend/venv/
+ENV/
+pip-freeze.txt
+pip-requirements.txt 
+*.egg-info/
+.DS_Store
+instance/
+.webassets-cache
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/ 
+
+# Node / Vite / React
+node_modules/
+dist/
+.env
+.env.*
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+coverage/
+.vite/
+
+# VS Code
+.vscode/
