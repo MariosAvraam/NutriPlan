@@ -5,7 +5,7 @@ __pycache__/
 *.pyd
 .Python
 env/
-backend/venv/
+venv/
 ENV/
 pip-freeze.txt
 pip-requirements.txt 
@@ -36,3 +36,5 @@ coverage/
 
 # VS Code
 .vscode/
+
+requirements.txt
