@@ -1,16 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+
 class Ingredient(models.Model):
     name = models.CharField(max_length=255, unique=True)
     calories_per_100g = models.FloatField(null=True, blank=True)
     protein_per_100g = models.FloatField(null=True, blank=True)
     carbs_per_100g = models.FloatField(null=True, blank=True)
-    fats_per_100g = models.FloatField(null=True, blank=True)
+    fat_per_100g = models.FloatField(null=True, blank=True)
     base_unit = models.CharField(max_length=10, default='g')
 
     def __str__(self):
         return self.name
+
 
 class Recipe(models.Model):
     MEAL_TYPE_CHOICES = [
@@ -32,7 +34,8 @@ class Recipe(models.Model):
     total_fat_g = models.FloatField(null=True, blank=True)
 
     # Ingredients will be linked via the RecipeIngredient model
-    ingredients = models.ManyToManyField(Ingredient, through='RecipeIngredient', related_name='recipes')
+    ingredients = models.ManyToManyField(
+        Ingredient, through='RecipeIngredient', related_name='recipes')
 
     # Optional fields
     # prep_time_minutes = models.PositiveIntegerField(null=True, blank=True)
@@ -41,6 +44,7 @@ class Recipe(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class RecipeIngredient(models.Model):
     UNIT_CHOICES = [
@@ -52,23 +56,31 @@ class RecipeIngredient(models.Model):
         ('piece', 'Piece'),
         # Add more as needed
     ]
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='ingredient_details')
-    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE, related_name='used_in_recipes')
+    recipe = models.ForeignKey(
+        Recipe, on_delete=models.CASCADE, related_name='ingredient_details')
+    ingredient = models.ForeignKey(
+        Ingredient, on_delete=models.CASCADE, related_name='used_in_recipes')
     quantity = models.FloatField()
     unit = models.CharField(max_length=20, choices=UNIT_CHOICES)
 
     class Meta:
-        unique_together = ('recipe', 'ingredient') # Ensure an ingredient is not listed twice for the same recipe
+        # Ensure an ingredient is not listed twice for the same recipe
+        unique_together = ('recipe', 'ingredient')
 
     def __str__(self):
         return f"{self.quantity} {self.unit} of {self.ingredient.name} for {self.recipe.name}"
 
+
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='profile')
     target_calories = models.PositiveIntegerField(default=2000)
-    target_protein_percent = models.FloatField(default=30.0, help_text="Percentage of total calories")
-    target_carbs_percent = models.FloatField(default=40.0, help_text="Percentage of total calories")
-    target_fat_percent = models.FloatField(default=30.0, help_text="Percentage of total calories")
+    target_protein_percent = models.FloatField(
+        default=30.0, help_text="Percentage of total calories")
+    target_carbs_percent = models.FloatField(
+        default=40.0, help_text="Percentage of total calories")
+    target_fat_percent = models.FloatField(
+        default=30.0, help_text="Percentage of total calories")
     # Optional:
     # dietary_preferences = models.JSONField(null=True, blank=True, help_text="e.g., ['vegetarian', 'no_nuts']")
 
