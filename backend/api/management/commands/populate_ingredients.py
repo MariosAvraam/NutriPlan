@@ -49,15 +49,24 @@ class Command(BaseCommand):
         ingredients_updated = 0
         ingredients_failed = 0
 
-        for common_name, fdc_id in PRE_VETTED_INGREDIENTS:
-            logger.info(f"Processing: {common_name} (FDC ID: {fdc_id})")
+        for common_name, fdc_id_str in PRE_VETTED_INGREDIENTS:
+            try:
+                current_fdc_id = int(fdc_id_str)
+            except ValueError:
+                logger.error(
+                    f"Invalid FDC ID format: {fdc_id_str} for {common_name}. Skipping.")
+                ingredients_failed += 1
+                continue
+
+            logger.info(
+                f"Processing: {common_name} (FDC ID: {current_fdc_id})")
             try:
                 params = {
                     'api_key': USDA_API_KEY,
                     'format': 'full'
                 }
                 response = requests.get(
-                    f"{API_BASE_URL}{fdc_id}", params=params)
+                    f"{API_BASE_URL}{current_fdc_id}", params=params)
                 response.raise_for_status()  # Raises an HTTPError for bad responses (4XX or 5XX)
                 data = response.json()
 
@@ -82,7 +91,7 @@ class Command(BaseCommand):
                     # Core macros
                     if not nutrient_found and key in ['protein', 'fat', 'carbs']:
                         logger.warning(
-                            f"Core nutrient '{key}' not found for {common_name} (FDC ID: {fdc_id}). Skipping this ingredient.")
+                            f"Core nutrient '{key}' not found for {common_name} (FDC ID: {current_fdc_id}). Skipping this ingredient.")
                         found_all_core_macros = False
                         break  # Stop processing this ingredient if a core macro is missing
 
@@ -90,40 +99,47 @@ class Command(BaseCommand):
                     ingredients_failed += 1
                     continue  # Skip to the next ingredient in the pre-vetted list
 
-                # Get the official description from API, or use your common_name
-                ingredient_name = data.get('description', common_name).strip()
+                # --- Extract and store foodPortions ---
+                food_portions_data = data.get('foodPortions', [])
+
+                # Get the official description from API
+                ingredient_api_description = data.get(
+                    'description', common_name).strip()
 
                 # Create or update the ingredient in the database
                 ingredient_obj, created = Ingredient.objects.update_or_create(
-                    name=ingredient_name,
+                    fdc_id=current_fdc_id,
                     defaults={
+                        'name': ingredient_api_description,
                         'calories_per_100g': nutrients_data.get('calories', 0.0),
                         'protein_per_100g': nutrients_data.get('protein', 0.0),
                         'fat_per_100g': nutrients_data.get('fat', 0.0),
                         'carbs_per_100g': nutrients_data.get('carbs', 0.0),
+                        'usda_food_portions': food_portions_data,
+                        # 'base_unit' is already 'g' by default
                     }
                 )
 
                 if created:
                     logger.info(
-                        f"CREATED: {ingredient_obj.name} with FDC ID {fdc_id}")
+                        f"CREATED: {ingredient_obj.name} with FDC ID {current_fdc_id}")
                     ingredients_added += 1
                 else:
                     logger.info(
-                        f"UPDATED: {ingredient_obj.name} with FDC ID {fdc_id}")
+                        f"UPDATED: {ingredient_obj.name} with FDC ID {current_fdc_id}")
                     ingredients_updated += 1
 
             except requests.exceptions.HTTPError as e:
                 logger.error(
-                    f"HTTP error for {common_name} (FDC ID: {fdc_id}): {e.response.status_code} - {e.response.text}")
+                    f"HTTP error for {common_name} (FDC ID: {current_fdc_id}): {e.response.status_code} - {e.response.text}")
                 ingredients_failed += 1
             except requests.exceptions.RequestException as e:
                 logger.error(
-                    f"Request failed for {common_name} (FDC ID: {fdc_id}): {e}")
+                    f"Request failed for {common_name} (FDC ID: {current_fdc_id}): {e}")
                 ingredients_failed += 1
             except Exception as e:
                 logger.error(
-                    f"An unexpected error occurred for {common_name} (FDC ID: {fdc_id}): {e}")
+                    f"An unexpected error occurred for {common_name} (FDC ID: {current_fdc_id}): {e}")
                 ingredients_failed += 1
 
             logger.info(

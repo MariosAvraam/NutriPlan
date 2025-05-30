@@ -101,4 +101,3 @@ PRE_VETTED_INGREDIENTS = [
 
 # Add in the future:
 # Cheddar cheese
-# Tomato
