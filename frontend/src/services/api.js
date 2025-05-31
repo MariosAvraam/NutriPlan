@@ -32,23 +32,19 @@ export const loginUser = (credentials) => {
   return apiClient.post('auth/login/', credentials);
 };
 
-// Placeholder for fetching user profile - to be used by UserProfile page
 export const fetchUserProfile = () => {
   return apiClient.get('profile/');
 };
 
-// Placeholder for updating user profile
 export const updateUserProfile = (profileData) => {
   return apiClient.put('profile/', profileData);
 };
 
-
-// Add other API functions here as needed (e.g., for recipes, meal plans)
 export const fetchRecipes = () => {
     return apiClient.get('recipes/');
 };
 
-export const generateMealPlan = () => { // No data needed for POST if it reads from profile
+export const generateMealPlan = () => {
     return apiClient.post('mealplan/generate/');
 };
 
