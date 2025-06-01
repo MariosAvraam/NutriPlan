@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 # For token authentication
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from .meal_planner_logic import generate_daily_meal_plan_v1
 import logging
 logger = logging.getLogger(__name__)
 
@@ -97,56 +98,36 @@ class MealPlanGenerateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        # 1. Get UserProfile to access targets
         try:
             user_profile = UserProfile.objects.get(user=request.user)
         except UserProfile.DoesNotExist:
-            return Response({"error": "User profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "User profile not found. Please set up your profile."}, status=status.HTTP_404_NOT_FOUND)
 
-        target_calories = user_profile.target_calories
-        # Convert percentages to grams (do this in the algorithm later)
-        # target_protein_g = (target_calories * user_profile.target_protein_percent / 100) / 4
-        # target_carbs_g = (target_calories * user_profile.target_carbs_percent / 100) / 4
-        # target_fat_g = (target_calories * user_profile.target_fat_percent / 100) / 9
-
-        # For now, return a dummy/placeholder plan
-        # In Phase 4, this will call your meal generation algorithm
         logger.info(
-            f"Meal plan generation requested for user: {request.user.username} with target calories: {target_calories}")
+            f"Meal plan generation requested for user: {request.user.username}")
 
-        # Dummy plan structure (replace with actual algorithm output later)
-        # Fetch a few sample recipes to make it look somewhat real
-        breakfast_recipe = Recipe.objects.filter(meal_type='breakfast').first()
-        lunch_recipe = Recipe.objects.filter(meal_type='lunch').first()
-        dinner_recipe = Recipe.objects.filter(meal_type='dinner').first()
+        generated_data = generate_daily_meal_plan_v1(user_profile)
 
-        if not (breakfast_recipe and lunch_recipe and dinner_recipe):
-            return Response({"error": "Not enough sample recipes to generate a dummy plan."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if not generated_data:
+            return Response({"error": "Could not generate a suitable meal plan with the current recipes and your targets. Try adjusting targets or check back later as more recipes are added."}, status=status.HTTP_400_BAD_REQUEST)
 
-        dummy_plan = {
-            "daily_targets": {
-                "calories": target_calories,
-                "protein_percent": user_profile.target_protein_percent,
-                "carbs_percent": user_profile.target_carbs_percent,
-                "fat_percent": user_profile.target_fat_percent,
-            },
-            "meals": {
-                "breakfast": RecipeSerializer(breakfast_recipe).data if breakfast_recipe else None,
-                "lunch": RecipeSerializer(lunch_recipe).data if lunch_recipe else None,
-                "dinner": RecipeSerializer(dinner_recipe).data if dinner_recipe else None,
-                "snacks": []  # Add snack logic later
-            },
-            "totals_for_the_day": {  # These would be calculated by the algorithm
-                "calories": (breakfast_recipe.total_calories or 0) +
-                            (lunch_recipe.total_calories or 0) +
-                            (dinner_recipe.total_calories or 0),
-                "protein_g": (breakfast_recipe.total_protein_g or 0) +
-                             (lunch_recipe.total_protein_g or 0) +
-                             (dinner_recipe.total_protein_g or 0),
-                # ... and so on for carbs and fat
-            }
+        # Serialize the plan for the response
+        # The plan_recipes dict contains Recipe model instances
+        serialized_meals = {}
+        for meal_type, recipe_obj in generated_data["plan_recipes"].items():
+            if recipe_obj:
+                serialized_meals[meal_type] = RecipeSerializer(recipe_obj).data
+            else:
+                serialized_meals[meal_type] = None
+
+        api_response_plan = {
+            # Already in a good format
+            "daily_targets": generated_data["user_targets"],
+            "meals": serialized_meals,
+            "totals_for_the_day": generated_data["plan_totals"]
         }
-        return Response(dummy_plan, status=status.HTTP_200_OK)
+
+        return Response(api_response_plan, status=status.HTTP_200_OK)
 
 # --- Optional: Ingredient List View (if you want to expose ingredients directly) ---
 # class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
